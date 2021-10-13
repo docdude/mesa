@@ -45,11 +45,15 @@
 #include "util/u_vector.h"
 #include "util/anon_file.h"
 #include "eglglobals.h"
+#include "EGL/egl.h"
+
 
 #include <wayland-egl-backend.h>
 #include <wayland-client.h>
 #include "wayland-drm-client-protocol.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
+#include "color-management-unstable-v1-client-protocol.h"
+
 
 /*
  * The index of entries in this table is used as a bitmask in
@@ -297,6 +301,116 @@ get_wl_surface_proxy(struct wl_egl_window *window)
    return wl_proxy_create_wrapper(window->surface);
 }
 
+/* Map EGL color spaces to Wayland color spaces */
+struct egl_colorspace {
+   EGLenum colorspace;
+   enum zwp_color_manager_v1_chromaticity_names chromaticity;
+   enum zwp_color_manager_v1_eotf_names transfer_func;
+   enum zwp_color_manager_v1_whitepoint_names whitepoint;
+};
+
+// TODO look up actual white points and confirm the mappings here
+static const struct egl_colorspace colorspaces[] = {
+   {
+      .colorspace = EGL_GL_COLORSPACE_LINEAR_KHR,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_BT709,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_LINEAR,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_SRGB_KHR,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_BT709,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_SRGB,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_DISPLAY_P3_EXT,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_DISPLAYP3,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_SRGB,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_DISPLAY_P3_LINEAR_EXT,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_DISPLAYP3,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_LINEAR,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_BT2020_LINEAR_EXT,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_BT2020,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_LINEAR,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_BT2020_PQ_EXT,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_BT2020,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_LINEAR,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_SCRGB_EXT,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_BT709,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_SRGB,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+   {
+      .colorspace = EGL_GL_COLORSPACE_SCRGB_LINEAR_EXT,
+      .chromaticity = ZWP_COLOR_MANAGER_V1_CHROMATICITY_NAMES_BT709,
+      .transfer_func = ZWP_COLOR_MANAGER_V1_EOTF_NAMES_LINEAR,
+      .whitepoint = ZWP_COLOR_MANAGER_V1_WHITEPOINT_NAMES_D65,
+   },
+};
+
+static const struct egl_colorspace *
+get_colorspace(EGLenum colorspace)
+{
+   int i;
+
+   for (i = 0; i < ARRAY_SIZE(colorspaces); i++) {
+      if (colorspaces[i].colorspace == colorspace)
+         return &colorspaces[i];
+   }
+   return NULL;
+}
+
+static bool hdr_metadata_is_valid(const struct _egl_hdr_metadata *metadata)
+{
+   return metadata->display_primary_r.x != EGL_DONT_CARE &&
+      metadata->display_primary_r.y != EGL_DONT_CARE &&
+      metadata->display_primary_g.x != EGL_DONT_CARE &&
+      metadata->display_primary_g.y != EGL_DONT_CARE &&
+      metadata->display_primary_b.x != EGL_DONT_CARE &&
+      metadata->display_primary_b.y != EGL_DONT_CARE &&
+      metadata->white_point.x != EGL_DONT_CARE &&
+      metadata->max_luminance != EGL_DONT_CARE &&
+      metadata->min_luminance != EGL_DONT_CARE &&
+      metadata->max_cll != EGL_DONT_CARE &&
+      metadata->max_fall != EGL_DONT_CARE;
+}
+
+static void color_space_created(void *data,
+			struct zwp_color_space_creator_v1 *zwp_color_space_creator_v1,
+			struct zwp_color_space_v1 *id) {
+      struct zwp_color_management_surface_v1 *cm_surface = data;
+      zwp_color_management_surface_v1_set_color_space(
+         cm_surface,
+         id,
+         ZWP_COLOR_MANAGEMENT_SURFACE_V1_RENDER_INTENT_PERCEPTUAL);
+}
+
+// TODO obviously need to handle errors
+static void color_space_error(void *data,
+		      struct zwp_color_space_creator_v1 *zwp_color_space_creator_v1,
+		      uint32_t error) {
+
+}
+
+const struct zwp_color_space_creator_v1_listener color_space_creator_callbacks = {
+   .created = color_space_created,
+   .error = color_space_error,
+};
+
+
 /**
  * Called via eglCreateWindowSurface(), drv->CreateWindowSurface().
  */
@@ -383,6 +497,50 @@ dri2_wl_create_window_surface(_EGLDisplay *disp, _EGLConfig *conf,
    }
    wl_proxy_set_queue((struct wl_proxy *)dri2_surf->wl_surface_wrapper,
                       dri2_surf->wl_queue);
+
+   if (dri2_dpy->wl_color_manager) {
+      struct zwp_color_management_surface_v1 *cm_surface;
+      struct zwp_color_space_creator_v1 *color_space;
+      const struct egl_colorspace *cs =
+         get_colorspace(dri2_surf->base.GLColorspace);
+      if (!cs)
+         goto cleanup_dpy_wrapper;
+
+      color_space = zwp_color_manager_v1_create_color_space_from_names(
+         dri2_dpy->wl_color_manager,
+         cs->transfer_func,
+         cs->chromaticity,
+         cs->whitepoint);
+      cm_surface = zwp_color_manager_v1_get_color_management_surface(dri2_dpy->wl_color_manager, window->surface);
+      zwp_color_space_creator_v1_add_listener(color_space, &color_space_creator_callbacks, cm_surface);
+      // TODO do we need to flush the queue with wl_display_roundtrip_queue();
+   }
+
+   if (dri2_dpy->wl_color_manager) {
+      struct _egl_hdr_metadata metadata =
+         dri2_surf->base.HdrMetadata;
+      const struct egl_colorspace *cs;
+
+      cs = get_colorspace(dri2_surf->base.GLColorspace);
+      if (!cs)
+         goto cleanup_dpy_wrapper;
+
+      if (!hdr_metadata_is_valid(&metadata))
+         goto cleanup_dpy_wrapper;
+
+      /* the EGL extension doesn't match CTA 861.3 :( */
+      metadata.max_luminance =
+         metadata.max_luminance * 65535 / 50000;
+      metadata.min_luminance =
+         metadata.min_luminance * 65535 / 50000 / 10000;
+      metadata.max_cll =
+         metadata.max_cll * 65535 / 50000;
+      metadata.max_fall =
+         metadata.max_fall * 65535 / 50000;
+
+      // This is where we'd send the HDR metadata to wayland, but you can't do that.
+   }
+
 
    dri2_surf->wl_win = window;
    dri2_surf->wl_win->driver_private = dri2_surf;
@@ -1336,7 +1494,13 @@ registry_handle_global_drm(void *data, struct wl_registry *registry,
                           MIN2(version, 3));
       zwp_linux_dmabuf_v1_add_listener(dri2_dpy->wl_dmabuf, &dmabuf_listener,
                                        dri2_dpy);
+   } else if (strcmp(interface, "zwp_color_manager_v1") == 0 && version >= 1) {
+      dri2_dpy->wl_color_manager =
+         wl_registry_bind(registry, name, &zwp_color_manager_v1_interface,
+                          MIN2(version, 1));
    }
+
+
 }
 
 static void
@@ -2107,6 +2271,8 @@ dri2_teardown_wayland(struct dri2_egl_display *dri2_dpy)
       wl_drm_destroy(dri2_dpy->wl_drm);
    if (dri2_dpy->wl_dmabuf)
       zwp_linux_dmabuf_v1_destroy(dri2_dpy->wl_dmabuf);
+   if (dri2_dpy->wl_color_manager)
+      zwp_color_manager_v1_destroy(dri2_dpy->wl_color_manager);
    if (dri2_dpy->wl_shm)
       wl_shm_destroy(dri2_dpy->wl_shm);
    if (dri2_dpy->wl_registry)

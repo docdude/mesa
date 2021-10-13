@@ -47,11 +47,11 @@
 #ifndef HAVE_MEMFD_CREATE
 #include <sys/syscall.h>
 
-static inline int
-memfd_create(const char *name, unsigned int flags)
-{
-   return syscall(SYS_memfd_create, name, flags);
-}
+//static inline int
+//memfd_create(const char *name, unsigned int flags)
+//{
+//   return syscall(SYS_memfd_create, name, flags);
+//}
 #endif
 
 /* Global state for the shim shared between libc, core, and driver. */

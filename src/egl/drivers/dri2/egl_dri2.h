@@ -217,7 +217,7 @@ struct dri2_egl_display
 #endif
 
    char                     *driver_name;
-
+   struct zwp_color_manager_v1 *drm_color_manager;
    const __DRIextension    **loader_extensions;
    const __DRIextension    **driver_extensions;
 
@@ -245,6 +245,7 @@ struct dri2_egl_display
    struct wl_event_queue    *wl_queue;
    struct zwp_linux_dmabuf_v1 *wl_dmabuf;
    struct u_vector          *wl_modifiers;
+   struct zwp_color_manager_v1 *wl_color_manager;
    bool                      authenticated;
    BITSET_DECLARE(formats, EGL_DRI2_MAX_FORMATS);
    uint32_t                  capabilities;

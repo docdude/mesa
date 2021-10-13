@@ -137,6 +137,22 @@ dri2_drm_config_is_compatible(struct dri2_egl_display *dri2_dpy,
    return true;
 }
 
+static bool hdr_metadata_is_valid(const struct _egl_hdr_metadata *metadata)
+{
+   return metadata->display_primary_r.x != EGL_DONT_CARE &&
+      metadata->display_primary_r.y != EGL_DONT_CARE &&
+      metadata->display_primary_g.x != EGL_DONT_CARE &&
+      metadata->display_primary_g.y != EGL_DONT_CARE &&
+      metadata->display_primary_b.x != EGL_DONT_CARE &&
+      metadata->display_primary_b.y != EGL_DONT_CARE &&
+      metadata->white_point.x != EGL_DONT_CARE &&
+      metadata->white_point.y != EGL_DONT_CARE &&
+      metadata->max_luminance != EGL_DONT_CARE &&
+      metadata->min_luminance != EGL_DONT_CARE &&
+      metadata->max_cll != EGL_DONT_CARE &&
+      metadata->max_fall != EGL_DONT_CARE;
+}
+
 static _EGLSurface *
 dri2_drm_create_window_surface(_EGLDisplay *disp, _EGLConfig *conf,
                                void *native_surface, const EGLint *attrib_list)
@@ -176,6 +192,24 @@ dri2_drm_create_window_surface(_EGLDisplay *disp, _EGLConfig *conf,
    dri2_surf->base.Width =  surf->base.v0.width;
    dri2_surf->base.Height = surf->base.v0.height;
    surf->dri_private = dri2_surf;
+#if 0
+   struct _egl_hdr_metadata metadata = dri2_surf->base.HdrMetadata;
+
+      if (!hdr_metadata_is_valid(&metadata)) {
+		  _eglError(EGL_BAD_MATCH, "Unsupported HDR metadata configuration");
+         goto cleanup_surf;
+      }
+      /* the EGL extension doesn't match CTA 861.3 :( */
+      metadata.max_luminance =
+         metadata.max_luminance * 65535 / 50000;
+      metadata.min_luminance =
+         metadata.min_luminance * 65535 / 50000 / 10000;
+      metadata.max_cll =
+         metadata.max_cll * 65535 / 50000;
+      metadata.max_fall =
+         metadata.max_fall * 65535 / 50000;
+   
+#endif
 
    if (!dri2_create_drawable(dri2_dpy, config, dri2_surf, dri2_surf->gbm_surf))
       goto cleanup_surf;

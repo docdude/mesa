@@ -237,17 +237,62 @@ enum gbm_bo_flags {
     * with GBM_BO_USE_CURSOR, but may not work for other combinations.
     */
    GBM_BO_USE_WRITE    = (1 << 3),
-   /**
+  /**
     * Buffer is linear, i.e. not tiled.
     */
    GBM_BO_USE_LINEAR = (1 << 4),
    /**
-    * Buffer is protected, i.e. encrypted and not readable by CPU or any
-    * other non-secure / non-trusted components nor by non-trusted OpenGL,
-    * OpenCL, and Vulkan applications.
+    * The buffer will be used as a texture that will be sampled from.
     */
-   GBM_BO_USE_PROTECTED = (1 << 5),
+   GBM_BO_USE_TEXTURING    = (1 << 5),
+   /**
+    * The buffer will be written to by a camera subsystem.
+    */
+   GBM_BO_USE_CAMERA_WRITE = (1 << 6),
+   /**
+    * The buffer will be read from by a camera subsystem.
+    */
+   GBM_BO_USE_CAMERA_READ = (1 << 7),
+   /**
+    * Buffer inaccessible to unprivileged users.
+    */
+   GBM_BO_USE_PROTECTED = (1 << 8),
+   /**
+    * These flags specify the frequency of software access. These flags do not
+    * guarantee the buffer is linear, but do guarantee gbm_bo_map(..) will
+    * present a linear view.
+    */
+   GBM_BO_USE_SW_READ_OFTEN = (1 << 9),
+   GBM_BO_USE_SW_READ_RARELY = (1 << 10),
+   GBM_BO_USE_SW_WRITE_OFTEN = (1 << 11),
+   GBM_BO_USE_SW_WRITE_RARELY = (1 << 12),
+   /**
+    * The buffer will be written by a video decode accelerator.
+    */
+   GBM_BO_USE_HW_VIDEO_DECODER = (1 << 13),
+   /**
+    * The buffer will be read by a video encode accelerator.
+    */
+   GBM_BO_USE_HW_VIDEO_ENCODER = (1 << 14),
+
+   /**
+    * If this flag is set, no backing memory will be allocated for the
+    * created buffer. The metadata of the buffer (e.g. size) can be
+    * queried, and the values will be equal to a buffer allocated with
+    * the same same arguments minus this flag. However, any methods
+    * which would otherwise access the underlying buffer will fail.
+    */
+   GBM_TEST_ALLOC = (1 << 15),
+
+   /**
+    * The buffer will be used for front buffer rendering.  On some
+    * platforms this may (for example) disable framebuffer compression
+    * to avoid problems with compression flags data being out of sync
+    * with pixel data.
+    */
+   GBM_BO_USE_FRONT_RENDERING = (1 << 16),
 };
+
 
 int
 gbm_device_get_fd(struct gbm_device *gbm);

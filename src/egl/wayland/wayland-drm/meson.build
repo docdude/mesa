@@ -34,6 +34,20 @@ wayland_drm_client_protocol_h = custom_target(
   command : [prog_wl_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
 )
 
+wayland_color_management_protocol_c = custom_target(
+  'color-management-unstable-v1-protocol.c',
+  input : wayland_color_management_xml,
+  output : 'color-management-unstable-v1-protocol.c',
+  command : [prog_wl_scanner, 'code', '@INPUT@', '@OUTPUT@'],
+)
+
+wayland_color_management_client_protocol_h = custom_target(
+  'color-management-unstable-v1-client-protocol.h',
+  input : wayland_color_management_xml,
+  output : 'color-management-unstable-v1-client-protocol.h',
+  command : [prog_wl_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
+)
+
 wayland_drm_server_protocol_h = custom_target(
   'wayland-drm-server-protocol.h',
   input : 'wayland-drm.xml',
@@ -43,11 +57,14 @@ wayland_drm_server_protocol_h = custom_target(
 
 libwayland_drm = static_library(
   'wayland_drm',
-  ['wayland-drm.c', wayland_drm_protocol_c, wayland_drm_server_protocol_h],
+  ['wayland-drm.c', wayland_drm_protocol_c,
+    wayland_color_management_protocol_c,
+    wayland_drm_server_protocol_h],
   gnu_symbol_visibility : 'hidden',
   dependencies : [dep_wayland_server],
   build_by_default : false,
 )
+
 
 # linux-dmabuf isn't part of wayland-drm, but this happens to be the only
 # place which is a) guaranteed to be built when building either or both

@@ -1920,6 +1920,11 @@ if with_platform_wayland
     dep_wl_protocols.get_pkgconfig_variable('pkgdatadir'), 'unstable',
     'linux-dmabuf', 'linux-dmabuf-unstable-v1.xml'
   )
+    wayland_color_management_xml = join_paths(
+    dep_wl_protocols.get_pkgconfig_variable('pkgdatadir'), 'unstable',
+    'color-management', 'color-management-unstable-v1.xml'
+  )
+
   pre_args += ['-DHAVE_WAYLAND_PLATFORM', '-DWL_HIDE_DEPRECATED']
 endif
 

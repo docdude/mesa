@@ -60,5 +60,6 @@ libmesa_format = static_library(
   dependencies : [dep_m, dep_valgrind],
   c_args : [c_msvc_compat_args],
   gnu_symbol_visibility : 'hidden',
+#   gnu_symbol_visibility : 'default',
   build_by_default : false
 )
