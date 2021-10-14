@@ -20,8 +20,8 @@ Meson (`docs/meson.rst <https://mesa3d.org/meson.html>`_):
 
   $ mkdir build
   $ cd build
-  $ meson ..
-  $ sudo ninja install
+  $ CFLAGS="-mcpu=cortex-a72 -mfpu=neon-fp-armv8" CXXFLAGS="-mcpu=cortex-a72 -mfpu=neon-fp-armv8"  meson --prefix /usr --libdir lib -D platforms=x11,wayland -D egl-native-platform=drm -D vulkan-drivers=broadcom,swrast -D dri-drivers=i915 -D gallium-drivers=kmsro,v3d,vc4,swrast -D buildtype=debug -D gles1=enabled -D gles2=enabled -D shared-glapi=enabled -D gbm=enabled -D gbm-backends-path=/usr/lib  -Dcpp_args="-fPIC" -Dc_args='-fPIC -O2'  build
+  $ sudo ninja install -j8
 
 
 Support
